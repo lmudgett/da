@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary Search Tree</title>
+    <style>
+        body {
+            display: flex;
+            margin: 0;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+        }
+
+        #datasetCon {
+            grid-column: 1 / 2;
+            grid-row: 1 / 2;
+        }
+
+        #displayCon {
+            grid-column: 2 / 3;
+            grid-row: 1 / 3;
+        }
+
+        #searchCon {
+            grid-column: 1 / 2;
+            grid-row: 2 / 3;
+        }
+    </style>
+</head>
+
+<body>
+
+<fieldset>
+    <legend>Binary Search Algorithm</legend>
+    <div class="container">
+        <div id="datasetCon">
+            <p>Dataset</p>
+            <div >Alpha Numberic:<input type="radio" id="rdoTypeAlphaNum" name="type" value="alphanumeric" checked/> 
+                Numeric:<input type="radio" id="rdoTypeNum" name="type" value="numeric"/></div>
+            <div><textarea id="dataset" cols="40" rows="3">33, 12, 44, 54, 92, 71, 4, 63, 21, 14</textarea></div>
+            <div><input type="button" value="Populate" onclick="populateTree()"/>
+                <input type="button" value="Clear" onclick="clearDataset()"/></div>
+        </div>
+        <div id="displayCon">
+            <p>Display</p>
+            <canvas id="screen" style="background-color: lightgray;" width="640" height="480" ></canvas>
+        </div>
+        <div id="searchCon">
+            <p>Search</p>
+            <div><input type="text" id="searchValue"/></div>
+            <div><input type="button" value="Search" onclick="searchTree()"/></div>
+        </div>
+    </div>
+</fieldset>
+
+<script>
+class Node {
+    constructor(key) {
+        this.key = key;
+        this.left = null;
+        this.right = null;
+    }
+}
+
+class BinarySearchTree {
+    constructor() {
+        this.root = null;
+    }
+
+    insert(key) {
+        if(this.root == null) {
+            this.root = new Node(key);
+        } else {
+            this._insert(this.root, key);
+        }
+    }
+
+    _insert(node, key) {
+        if (key < node.key) {
+            if (node.left == null) {
+                node.left = new Node(key);
+            } else {
+                this._insert(node.left, key);
+            }
+        } else if (key > node.key) {
+            if (node.right == null) {
+                node.right = new Node(key);
+            } else {
+                this._insert(node.right, key);
+            }
+        }
+    }
+
+    search(key) {
+        return this._search(this.root, key);
+    }
+
+    _search(node, key) {
+        if (node == null || node.key == key) {
+            return node;
+        }
+        if (key < node.key) {
+            return this._search(node.left, key);
+        }
+        return this._search(node.right, key);
+    }
+
+    toJSON() {
+        return JSON.stringify(this.root, this._replacer);
+    }
+
+    static fromJSON(json) {
+        const data = JSON.parse(json);
+        const tree = new BinarySearchTree();
+        tree.root = BinarySearchTree._fromJSONObject(data);
+        return tree;
+    }
+
+    static _fromJSONObject(data) {
+        if (data == null) {
+            return null;
+        }
+        const node = new Node(data.key);
+        node.left = BinarySearchTree._fromJSONObject(data.left);
+        node.right = BinarySearchTree._fromJSONObject(data.right);
+        return node;
+    }
+}
+
+function clearDataset() {
+    document.getElementById("dataset").value = "";
+}
+
+function populateTree() {
+    if(document.getElementById("dataset").value === ''){
+        alert("You didn't provide a dataset to populate, please provide one seperating values by commas! eg: 1,2,3,10");
+        return;
+    }
+    let bst = new BinarySearchTree();
+    const valueList = document.getElementById("dataset").value.split(",");
+    let err = false;
+    valueList.forEach(element => {
+        if(isAlphaNum()) {
+            bst.insert(element.trim());
+        } else {
+            if(isNaN(element.trim())) {
+                err = true;
+            }
+            bst.insert(parseInt(element.trim()));                 
+        }
+    });
+    const canvas = document.getElementById('screen');
+    if(err) {
+        clearCanvas(canvas)
+        alert("The provided numeric dataset has a character listed in it, please remove the character or change the type to alpha numeric!");
+        return;
+    }
+    const bstJSON = bst.toJSON();
+    localStorage.setItem('bst', bstJSON)
+    drawBST(bst, canvas)
+}
+
+function searchTree() {
+    if(document.getElementById("searchValue").value === ''){
+        alert("You didn't provide a value to search on in the BST, please provide one!");
+        return;
+    }
+    const bstJSON = localStorage.getItem('bst');
+    if (bstJSON) {
+        const bst = BinarySearchTree.fromJSON(bstJSON);
+        let sv = document.getElementById("searchValue").value.trim();
+        if(!isAlphaNum() && !isNaN(sv)) {
+            sv = parseInt(sv);
+        } else {
+            alert("You tried to search for a character in a numeric dataset, please use numbers only or use a alpha numeric dataset!");
+            return;
+        }
+
+        const canvas = document.getElementById('screen');
+        if (bst.search(sv) != null) {
+            drawBST(bst, canvas, sv);
+        } else {
+            alert("The provided entry doesn't exist in the dataset, please try again!");
+            drawBST(bst, canvas);
+        }
+    }
+}
+
+function isAlphaNum() {
+    return document.getElementById("rdoTypeAlphaNum").checked ? true : false;
+}
+
+function clearCanvas(canvas) {
+    if (!canvas.getContext) {
+        return;
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return ctx;
+}
+
+function drawBST(bst, canvas, highlightKey = null) {
+    const ctx = clearCanvas(canvas) 
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const nodeRadius = 20;
+
+    function getMaxDepth(node) {
+        if (node == null) {
+            return 0;
+        }
+        const leftDepth = getMaxDepth(node.left);
+        const rightDepth = getMaxDepth(node.right);
+        return Math.max(leftDepth, rightDepth) + 1;
+    }
+
+    const maxDepth = getMaxDepth(bst.root);
+
+    function drawNode(node, x, y, depth) {
+        if (node == null) {
+            return;
+        }
+
+        const horizontalSpacing = 320 / Math.pow(2, depth + 1);
+        const leftX = x - horizontalSpacing;
+        const rightX = x + horizontalSpacing;
+        const nextY = y + 60;  // Vertical spacing between levels
+
+        // Draw the edges
+        if (node.left != null) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(leftX, nextY);
+            ctx.stroke();
+        }
+        if (node.right != null) {
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(rightX, nextY);
+            ctx.stroke();
+        }
+
+        // Draw the node
+        ctx.beginPath();
+        ctx.arc(x, y, nodeRadius, 0, Math.PI * 2);
+        if(highlightKey != null && node.key == highlightKey) {
+            ctx.fillStyle = 'green';
+        } else {
+            ctx.fillStyle = 'white';
+        }
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = 'black';
+        ctx.fillText(node.key, x - 5, y + 5);
+
+        // Recursively draw the children nodes
+        drawNode(node.left, leftX, nextY, depth + 1);
+        drawNode(node.right, rightX, nextY, depth + 1);
+    }
+
+    const startX = canvas.width / 2;
+    const startY = nodeRadius * 2;
+
+    drawNode(bst.root, startX, startY, 0);
+}
+</script>
+
+</body>
+</html>
